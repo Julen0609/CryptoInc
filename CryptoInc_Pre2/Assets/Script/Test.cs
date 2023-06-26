@@ -21,9 +21,10 @@ public class Test : MonoBehaviour
         //StartCoroutine(GetTradeInfos());
         //StartCoroutine(GetExchangeInfos());
         //StartCoroutine(GetContratInfos());
-        StartCoroutine(GetPaireInfos());
+        //StartCoroutine(GetPaireInfos());
         //StartCoroutine(GetActualiseInfos());
-        StartCoroutine(ClotureTrade());
+        //StartCoroutine(ClotureTrade());
+        StartCoroutine(MakeSmartContract());
 
     }
 
@@ -148,6 +149,21 @@ public class Test : MonoBehaviour
         Debug.Log(www.text);
         string[] trade_infos = www.text.Split('\t');
         Debug.Log("fini");
+        if (trade_infos[0] == "0")
+        {
+            Debug.Log("reussi");
+        }
+    }
+
+
+    IEnumerator MakeSmartContract()
+    {
+        WWWForm form = new WWWForm();
+        form.AddField("name", "test");
+        WWW www = new WWW("http://localhost/cryptoinc/interpreteur_code.php",form);
+        yield return www;
+        Debug.Log(www.text);
+        string[] trade_infos = www.text.Split('\t');
         if (trade_infos[0] == "0")
         {
             Debug.Log("reussi");

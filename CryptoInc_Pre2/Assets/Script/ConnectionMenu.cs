@@ -26,18 +26,15 @@ public class ConnectionMenu : MonoBehaviour
         WWWForm form = new WWWForm();
         form.AddField("name", username.text);
         form.AddField("password", password.text);
-        WWW www = new WWW("http://localhost/cryptoinc/login.php", form);
+        WWW www = new WWW("http://localhost:5000/login", form);
         yield return www;
         Debug.Log(www.text);
         string[] user_infos = www.text.Split('\t');
         if (user_infos[0] == "0")
         {
-            
 
-            DBManager.id_user = ulong.Parse(user_infos[2]);
-            DBManager.username = username.text;
-            DBManager.argent = double.Parse((user_infos[1]).Replace('.',','));
-            DBManager.password = password.text;
+
+            DBManager.LogIn(user_infos[1], username.text, password.text);
             UnityEngine.SceneManagement.SceneManager.LoadScene(1);
         }
         else
@@ -52,7 +49,7 @@ public class ConnectionMenu : MonoBehaviour
         WWWForm form = new WWWForm();
         form.AddField("name", username.text);
         form.AddField("password", password.text);
-        WWW www = new WWW("http://localhost/cryptoinc/register.php", form);
+        WWW www = new WWW("http://localhost:5000/register", form);
         yield return www;
         if (www.text == "0")
         {
@@ -63,6 +60,34 @@ public class ConnectionMenu : MonoBehaviour
             Debug.Log("User creation Failed. Error #" + www.text);
         }
     }
+
+
+
+//    IEnumerator PHPLogin()
+//    {
+//        WWWForm form = new WWWForm();
+//        form.AddField("name", username.text);
+//        form.AddField("password", password.text);
+//        WWW www = new WWW("http://localhost/cryptoinc/login.php", form);
+//        yield return www;
+//        Debug.Log(www.text);
+//        string[] user_infos = www.text.Split('\t');
+//        if (user_infos[0] == "0")
+//        {
+
+            
+//            DBManager.id_user = ulong.Parse(user_infos[2]);
+//            DBManager.username = username.text;
+//            DBManager.argent = double.Parse((user_infos[1]).Replace('.', ','));
+//            DBManager.password = password.text;
+//            UnityEngine.SceneManagement.SceneManager.LoadScene(1);
+//        }
+//        else
+//        {
+//            Debug.Log("User Login failed. Error #" + www.text);
+//        }
+//        Debug.Log(www.text);
+//    }
 
 }
 

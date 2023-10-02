@@ -163,7 +163,6 @@
 	}
 	elseif ($type == "derivee") 
 	{
-
 		
 
 		if ($levier <= $levier_max and $levier >=1)

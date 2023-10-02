@@ -5,10 +5,16 @@ using UnityEngine;
 public static class DBManager
     
 {
-    public static string username;
-    public static double argent;
-    public static ulong id_user;
-    public static string password;
+    //public static string username;      //Reprendre ICI en commentant ces 4 lignes et trouver des moyens innovants de les remplacer par l'Objet Connect dans les autres scripts
+    //public static double argent;
+    //public static ulong id_user;
+    //public static string password;
+
+    //public static List<Connection> Connections;
+    public static Connection connect;
+
+
+    
 
     public static Dictionary<int, string> error_list = new Dictionary<int, string>();
 
@@ -34,12 +40,31 @@ public static class DBManager
         error_list.Add(18, "Le trade n'est pas un derivée");
     }
 
-    public static bool LoggedIn { get { return username != null; } }
+    public static bool LoggedIn { get { return connect.username != null; } }
+
+    public static void LogIn(string jsonData, string username, string password)
+    {
+  
+        connect = JsonUtility.FromJson<Connection>(jsonData);
+        connect.password = password;
+        connect.username = username;
+
+        Debug.Log(connect.argent+"\t"+connect.username);
+    }
 
     public static void LogOut()
     {
-        username = null;
+        connect.username = null;
     }
     // Start is called before the first frame update
 
+}
+
+
+public class Connection
+{
+    public ulong id;
+    public double argent;
+    public string username;
+    public string password;
 }

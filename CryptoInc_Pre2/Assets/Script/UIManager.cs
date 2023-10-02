@@ -2,9 +2,12 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Networking;
+using System;
 
 public class UIManager : MonoBehaviour
 {
+  
 
     public Text prix_crypto_txt;
     public Text argent_txt;
@@ -15,49 +18,40 @@ public class UIManager : MonoBehaviour
     public Text prix_relatif_txt;
     public InputField crypto_relative_txt;
     public Text hold_txt;
-    public Dropdown Exchange;
-    public Dropdown Contrat;
-    public GameObject list_trade_code;
-    public GameObject levier;
+    public Dropdown Exchange_Drpdn;
+    public Dropdown Contrat_Drpdn;
+    public GameObject list_trade_GObj;
+    public GameObject levier_GObj;
 
-    Dictionary<int, string[] > exchanges_list = new Dictionary<int, string[]>();
-    Dictionary<int, string[]> contrat_list = new Dictionary<int, string[]>();
+    public Paire paire;
 
-    //public List<trade> trades = new List<trade>();
-    public trade_list list_trade;
+    public Exchange_List exchanges_list;
+    public Exchange exchange;   //Exchange Actuel
+    public Contrat_List contrat_list;
+    public Contrat contrat;     //Contrat Actuel
+
     public levier levier_code;
 
-
-    public double argent = 1563;
-    public double prix_crypto = 29000;
-    public string crypto_name = "Bitcoin";
-    public string crypto_sigle = "Btc";
-    public string exchange_name = "Binance";
-    public string exchange_id = "1";
-    public double hold = 0;
     public double prix_relatif = 0;
+    public double quantite = 0;
     public float temp_float;
     public string temp_scale;
-    public string contrat_id = "1";
-    public double crypto_supply = 0;
-    public double quantite = 0;
-    public int leverage_max;
-    public string type_contrat;
+    
 
     // Start is called before the first frame update
     void Start()
     {
-        argent = DBManager.argent ;
-        GameManager.instance.concatenate_money(argent, ref temp_float, ref temp_scale);
+        //argent = DBManager.connect.argent ;
+        GameManager.instance.concatenate_money(DBManager.connect.argent, ref temp_float, ref temp_scale);
 
-        prix_crypto_txt.text = prix_crypto.ToString()+" $";
+        prix_crypto_txt.text = paire.data.prix.ToString()+" $";
         argent_txt.text = temp_float.ToString()+"  "+ temp_scale + " $";
-        crypto_name_txt.text = crypto_name;
-        crypto_sigle_txt.text = crypto_sigle;
-        exchange_name_txt.text = exchange_name;
-        change_txt.text = crypto_sigle;
+        crypto_name_txt.text = paire.data.name;
+        crypto_sigle_txt.text = contrat.sigle;
+        exchange_name_txt.text = exchange.name;
+        change_txt.text = contrat.sigle;
         prix_relatif_txt.text = "0 $";
-        hold_txt.text = hold.ToString()+" "+ crypto_sigle;
+        hold_txt.text = paire.hold.ToString()+" "+ contrat.sigle;
         crypto_relative_txt.text = "0";
         quantite = 0;
         prix_relatif = 0;
@@ -79,7 +73,7 @@ public class UIManager : MonoBehaviour
         if (float.TryParse(crypto_relative_txt.text, out refs))
         {
             quantite = double.Parse(crypto_relative_txt.text);
-            prix_relatif = (quantite * prix_crypto/ levier_code.leverage);
+            prix_relatif = (quantite * paire.data.prix / levier_code.leverage);
             GameManager.instance.concatenate_money(prix_relatif, ref temp_float, ref temp_scale);
             prix_relatif_txt.text = temp_float.ToString() + temp_scale + " $";
         }
@@ -100,33 +94,38 @@ public class UIManager : MonoBehaviour
     public void Actualise2()
     {
 
-    
-        DBManager.argent = argent;
-        GameManager.instance.concatenate_money(argent, ref temp_float, ref temp_scale);
-
-        prix_crypto_txt.text = prix_crypto.ToString() + " $"; //
+        GameManager.instance.concatenate_money(DBManager.connect.argent, ref temp_float, ref temp_scale);
         argent_txt.text = temp_float.ToString() + "  " + temp_scale + " $"; //
-        crypto_name_txt.text = crypto_name;
-        crypto_sigle_txt.text = crypto_sigle;
-        exchange_name_txt.text = exchange_name;
-        change_txt.text = crypto_sigle;
-        hold_txt.text = hold.ToString() + " " + crypto_sigle; //
+
+        GameManager.instance.concatenate_money(paire.data.prix, ref temp_float, ref temp_scale);
+        prix_crypto_txt.text = temp_float.ToString() + "  " + temp_scale + " $"; //
+
+        GameManager.instance.concatenate_money(paire.hold, ref temp_float, ref temp_scale);
+        hold_txt.text = temp_float.ToString() + "  " + temp_scale + " " + contrat.sigle; //
+
+        crypto_name_txt.text = paire.data.name;
+        crypto_sigle_txt.text = contrat.sigle;
+        exchange_name_txt.text = exchange.name; 
+        change_txt.text = contrat.sigle;
+        
         crypto_relative_txt.text = "0";
+        prix_relatif_txt.text = "0 $";
+
         quantite = 0;
         prix_relatif = 0;
-        prix_relatif_txt.text = "0 $";
+        
 
     }
 
 
     public void Buy()
     {
-        if (argent >= prix_relatif)
+        if (DBManager.connect.argent >= prix_relatif)
         {
-            if (type_contrat == "spot")
+            if (paire.data.type == "spot")
             {
                 StartCoroutine(TakeTrade("buy"));
-            } else  if (type_contrat == "derivee")
+            } else  if (paire.data.type == "derivee")
             {
                 StartCoroutine(TakeTrade("long"));
             }
@@ -136,11 +135,11 @@ public class UIManager : MonoBehaviour
 
     public void Sell()
     {
-            if (type_contrat == "spot")
+            if (paire.data.type == "spot")
             {
                 StartCoroutine(TakeTrade("sell"));
             }
-            else if (type_contrat == "derivee")
+            else if (paire.data.type == "derivee")
             {
                 StartCoroutine(TakeTrade("short"));
             }
@@ -149,49 +148,45 @@ public class UIManager : MonoBehaviour
 
     public void Change_Exchange()
     {
-        exchange_name = exchanges_list[Exchange.value][0];
-        exchange_id = exchanges_list[Exchange.value][1];
-        exchange_name_txt.text = exchange_name;
+        exchange = exchanges_list.list[Exchange_Drpdn.value];
+        exchange_name_txt.text = exchange.name;
         StartCoroutine(GetContratInfos());
     }
 
     public void Change_Paire()
     {
-        contrat_id = contrat_list[Contrat.value][1];
-        crypto_sigle = contrat_list[Contrat.value][0];
-        crypto_sigle_txt.text = crypto_sigle;
+        contrat = contrat_list.list[Contrat_Drpdn.value];
+        crypto_sigle_txt.text = contrat.sigle;
         Actualise();
     }
 
 
     IEnumerator GetExchangeInfos()
     {
-
-        WWW www = new WWW("http://localhost/cryptoinc/get_exch.php");
-        yield return www;
-        Debug.Log(www.text);
-        string[] reponse = www.text.Split('\t');
+        
+        WWWForm form = new WWWForm();
+        UnityWebRequest www = UnityWebRequest.Post("http://localhost:5000/get_exch", form);
+        www.downloadHandler = new DownloadHandlerBuffer();
+        yield return www.SendWebRequest();
+        Debug.Log(www.downloadHandler.text);
+        string[] reponse = www.downloadHandler.text.Split('\t');
         if (reponse[0] == "0")
         {
-            Debug.Log("reussi");
-            List<string> exchange = new List<string> { };
-            exchanges_list.Clear();
-            for (int i = 1; i < (reponse.Length - 1); i++)
+            Debug.Log(reponse[1]);
+            exchanges_list = JsonUtility.FromJson<Exchange_List>(reponse[1]);
+            Debug.Log(exchanges_list.list[0]);
+            List<string> exch_name = new List<string>();
+            foreach (Exchange exchange in exchanges_list.list)
             {
-                string[] sliced = reponse[i].Split('=');
-
-                Debug.Log(sliced[0] + sliced[1]);
-                exchange.Add(sliced[0]);
-                exchanges_list.Add(i-1, new string[] { sliced[0], sliced[1] });
-                
+                exch_name.Add(exchange.name);
             }
-            Exchange.ClearOptions();
-            Exchange.AddOptions((exchange));
+            Exchange_Drpdn.ClearOptions();
+            Exchange_Drpdn.AddOptions((exch_name));
             Change_Exchange();
         }
         else
         {
-            Debug.Log(DBManager.error_list[int.Parse(www.text)]);
+            Debug.Log(DBManager.error_list[int.Parse(www.downloadHandler.text)]);
         }
 
     }
@@ -200,33 +195,28 @@ public class UIManager : MonoBehaviour
     {
 
         WWWForm form = new WWWForm();
-        Debug.Log(exchange_name);
-        form.AddField("exchange", exchange_id);
-        WWW www = new WWW("http://localhost/cryptoinc/get_contrat.php", form);
-        yield return www;
-        Debug.Log(www.text);
-        string[] reponse = www.text.Split('\t');
+        Debug.Log(exchange.name);
+        form.AddField("exchange", exchange.id.ToString());
+        UnityWebRequest www = UnityWebRequest.Post("http://localhost:5000/get_contrat", form);
+        www.downloadHandler = new DownloadHandlerBuffer();
+        yield return www.SendWebRequest();
+        Debug.Log(www.downloadHandler.text);
+        string[] reponse = www.downloadHandler.text.Split('\t');
         if (reponse[0] == "0")
         {
-            Debug.Log("reussi");
-            List<string> contrat = new List<string> { };
-            contrat_list.Clear();
-            for (int i = 1; i < (reponse.Length - 1); i++)
+            contrat_list = JsonUtility.FromJson<Contrat_List>(reponse[1]);
+            List<string> contrat_sigles = new List<string>();
+            foreach (Contrat contrat in contrat_list.list)
             {
-                string[] sliced = reponse[i].Split('=');
-
-                Debug.Log(sliced[0] + sliced[1]);
-                contrat.Add(sliced[0]);
-                contrat_list.Add(i - 1, new string[] { sliced[0], sliced[1] });
-                
+                contrat_sigles.Add(contrat.sigle);
             }
-            Contrat.ClearOptions();
-            Contrat.AddOptions((contrat));
+            Contrat_Drpdn.ClearOptions();
+            Contrat_Drpdn.AddOptions((contrat_sigles));
             Change_Paire();
         }
         else
         {
-            Debug.Log(DBManager.error_list[int.Parse(www.text)]);
+            Debug.Log(DBManager.error_list[int.Parse(www.downloadHandler.text)]);
         }
     }
 
@@ -236,10 +226,10 @@ public class UIManager : MonoBehaviour
         WWWForm form = new WWWForm();
 
     
-        form.AddField("iduser", DBManager.id_user.ToString());
-        form.AddField("idcontrat", contrat_id.ToString());
+        form.AddField("iduser", DBManager.connect.id.ToString());
+        form.AddField("idcontrat", contrat.id.ToString());
         form.AddField("quantite", quantite.ToString().Replace(',', '.'));
-        form.AddField("password", DBManager.password);
+        form.AddField("password", DBManager.connect.password);
         form.AddField("transaction", sens);
         if (sens == "long" || sens == "short")
         {
@@ -249,17 +239,18 @@ public class UIManager : MonoBehaviour
 
         Debug.Log("TradeTaken");
 
-        WWW www = new WWW("http://localhost/cryptoinc/take_trade.php", form);
-        yield return www;
-        Debug.Log(www.text);
-        if (int.Parse(www.text) == 0)
+        UnityWebRequest www = UnityWebRequest.Post("http://localhost:5000/take_trade", form);
+        www.downloadHandler = new DownloadHandlerBuffer();
+        yield return www.SendWebRequest();
+        Debug.Log(www.downloadHandler.text);
+        if (www.downloadHandler.text == "0")
         {
             Debug.Log("reussi");
             Actualise();
         }
         else
         {
-            Debug.Log(DBManager.error_list[int.Parse(www.text)]);
+            Debug.Log(DBManager.error_list[int.Parse(www.downloadHandler.text)]);
         }
     }
 
@@ -267,92 +258,129 @@ public class UIManager : MonoBehaviour
     IEnumerator ActualiseInfos()
     {
         WWWForm form = new WWWForm();
-        form.AddField("contrat", contrat_id);
-        form.AddField("user", DBManager.id_user.ToString());
-        form.AddField("password", DBManager.password);
-        WWW www = new WWW("http://localhost/cryptoinc/actualise_paire.php", form);
-        yield return www;
-        Debug.Log(www.text);
-        string[] reponse = www.text.Split('\t');
+        form.AddField("contrat", contrat.id.ToString());
+        form.AddField("user", DBManager.connect.id.ToString());
+        form.AddField("password", DBManager.connect.password);
+        UnityWebRequest www = UnityWebRequest.Post("http://localhost:5000/actualise_paire", form);
+        www.downloadHandler = new DownloadHandlerBuffer();
+        yield return www.SendWebRequest();
+        Debug.Log(www.downloadHandler.text);
+        string[] reponse = www.downloadHandler.text.Split('\t');
         if (reponse[0] == "0")
         {
-            type_contrat = reponse[1];
-            if (reponse[1] == "spot")
-            {
-                prix_crypto = double.Parse(reponse[2].Replace('.', ','));
-                argent = double.Parse(reponse[3].Replace('.', ','));
-                crypto_name = reponse[4];
-                crypto_supply = double.Parse(reponse[5].Replace('.', ','));
-                hold = double.Parse(reponse[6].Replace('.', ','));
-                list_trade.Clear();
-                list_trade_code.SetActive(false);
-                levier.SetActive(false);
-            }
-            else if (reponse[1] == "derivee")
-            {
-                prix_crypto = double.Parse(reponse[2].Replace('.', ','));
-                argent = double.Parse(reponse[3].Replace('.', ','));
-                crypto_name = reponse[4];
-                crypto_supply = double.Parse(reponse[5].Replace('.', ','));
-                leverage_max = int.Parse(reponse[6]);
-
-                list_trade_code.SetActive(true);
-                string[] trade_list = reponse[7].Split('=');
-
-                if (trade_list[0].Contains("°"))
-                {
-                    list_trade.Initialize(trade_list.Length);
-                }
-                else
-                {
-                    list_trade.Clear();
-                }
-                if (leverage_max > 1)
-                {
-                    levier.SetActive(true);
-                    levier_code.Actualize(leverage_max);
-                }
-                else
-                {
-                    levier.SetActive(false);
-                }
-                if (trade_list[0].Contains("°"))
-                {
-                    int n = 0;
-                    foreach (string trade in trade_list)
-                    {
-                        string[] infos_trade = trade.Split('°');
-                        list_trade.list_trade[n].id_trade = double.Parse(infos_trade[0]);
-                        list_trade.list_trade[n].prix_dachat = double.Parse(infos_trade[1].Replace('.', ','));
-                        list_trade.list_trade[n].quantite = double.Parse(infos_trade[2].Replace('.', ','));
-                        list_trade.list_trade[n].leverage = int.Parse(infos_trade[3]);
-                        list_trade.list_trade[n].prix = prix_crypto;
-                        list_trade.list_trade[n].type_trade = infos_trade[4];
-                        list_trade.list_trade[n].liquidation = double.Parse(infos_trade[5].Replace('.', ','));
-                        list_trade.list_trade[n].UIManager = this;
-                        list_trade.list_trade[n].Actualise();
-                        n = n + 1;
-                    }
-                }
-                
-                
-                
-
-                hold = 0;
-
-            }
+            paire.data = JsonUtility.FromJson<JSONPaireData>(reponse[1]);
+            paire.temp_trades = JsonUtility.FromJson<JSONTrade_List>(reponse[2]);
+            DBManager.connect.argent = double.Parse(reponse[3].Replace('.', ','));
+            paire.Actualise(this);
 
 
             Debug.Log("reussi");
 
-            Actualise2();
+            Actualise2();//Continuer avec Actualise 2
         }
         else
         {
-            Debug.Log(DBManager.error_list[int.Parse(www.text)]);
+            Debug.Log(DBManager.error_list[int.Parse(www.downloadHandler.text)]);
         }
 
     }
 
 
+}
+
+[Serializable]
+public class Exchange
+{
+    public ulong id;
+    public string name;
+}
+[Serializable]
+public class Exchange_List
+{
+    public List<Exchange> list;
+}
+
+[Serializable]
+public class Contrat
+{
+    public ulong id;
+    public string sigle;
+}
+[Serializable]
+public class Contrat_List
+{
+    public List<Contrat> list;
+}
+[Serializable]
+public class Paire
+{
+    public JSONPaireData data;
+    public JSONTrade_List temp_trades;
+    public trade_list trade_list;   
+    public double hold;
+
+    public void Actualise(UIManager uIManager   )
+    {
+        if (data.type == "spot")
+        {
+            hold = 0;
+            foreach (TradeData hld in temp_trades.list)
+            {
+                hold = hold + hld.quantite;
+            }
+            uIManager.list_trade_GObj.SetActive(false);
+            uIManager.levier_GObj.SetActive(false);
+        }
+        else if (data.type == "derivee")
+        {
+            int n = 0;
+            if (data.leverage_max > 1)
+            {
+                uIManager.levier_GObj.SetActive(true);
+                uIManager.levier_code.Actualize(data.leverage_max);
+            }
+            else
+            {
+                uIManager.levier_GObj.SetActive(false);
+            }
+
+            uIManager.list_trade_GObj.SetActive(true);
+            if (temp_trades.list.Count >= 1)
+            {
+                trade_list.Initialize(temp_trades.list.Count);
+            }
+            else
+            {
+                trade_list.Clear();
+                uIManager.list_trade_GObj.SetActive(false);
+            }
+            foreach (TradeData trd in temp_trades.list)
+            {
+
+                trade_list.list[n].data = trd;
+                trade_list.list[n].UIManager = uIManager;
+                trade_list.list[n].prix = data.prix;
+                trade_list.list[n].Actualise();
+                n = n + 1;
+            }
+            hold = 0;
+        }
+    }
+
+}
+
+[Serializable] 
+public class JSONTrade_List
+{
+    public List<TradeData> list;
+}
+[Serializable]
+
+public class JSONPaireData
+{
+    public double prix;
+    public double supply;
+    public string name;
+    public string type;
+    public int leverage_max;
 }

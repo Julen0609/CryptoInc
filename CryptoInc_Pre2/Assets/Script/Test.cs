@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System;
+using UnityEngine.Networking;
 
 public class Test : MonoBehaviour
 {
@@ -16,14 +17,15 @@ public class Test : MonoBehaviour
         Debug.Log(argent_ref);
         Debug.Log(argent_scale_ref);
 
-        DBManager.argent = double.Parse(("252562.24").Replace('.',','));
+        //DBManager.connect.argent = double.Parse(("252562.24").Replace('.',','));
 
         //StartCoroutine(GetTradeInfos());
         //StartCoroutine(GetExchangeInfos());
         //StartCoroutine(GetContratInfos());
-        StartCoroutine(GetPaireInfos());
+        //StartCoroutine(GetPaireInfos());
         //StartCoroutine(GetActualiseInfos());
-        StartCoroutine(ClotureTrade());
+        //StartCoroutine(ClotureTrade());
+        StartCoroutine(Get_ExchJS());
 
     }
 
@@ -153,5 +155,66 @@ public class Test : MonoBehaviour
             Debug.Log("reussi");
         }
     }
+
+    IEnumerator TestJS()
+    {
+        Debug.Log("test JS");
+        WWWForm form = new WWWForm();
+        form.AddField("name", "Juju_test");
+        form.AddField("password", "bruh");
+        WWW www = new WWW("http://localhost:5000/add", form);
+        yield return www;
+        Debug.Log(www.text);
+    }
+
+    IEnumerator TestJS2()
+    {
+        Debug.Log("test JS");
+        WWWForm form = new WWWForm();
+        form.AddField("name", "test_0000");
+        form.AddField("password", "bruh");
+        WWW www = new WWW("http://localhost:5000/register", form);
+        yield return www;
+        Debug.Log(www.text);
+    }
+
+    IEnumerator TestLoginJS()
+    {
+        Debug.Log("test JS");
+        WWWForm form = new WWWForm();
+        form.AddField("name", "test_0000");
+        form.AddField("password", "bruh");
+        WWW www = new WWW("http://localhost:5000/login", form);
+        yield return www;
+        Debug.Log(www.text);
+        
+    }
+
+    IEnumerator TestUnityNetworking()   //Script Fonctionnel utilisant la nouvelle methode de Unity ( a remplacer dans les differents cas d'usage progressivement en même temps que le backend
+    {
+        Debug.Log("test Unity Network");
+        WWWForm form = new WWWForm();
+        form.AddField("name", "test_0000");
+        form.AddField("password", "bruh");
+        UnityWebRequest www =  UnityWebRequest.Post("http://localhost:5000/login", form);
+        www.downloadHandler = new DownloadHandlerBuffer();
+        yield return www.SendWebRequest();
+        Debug.Log(www.result);
+        Debug.Log(www.downloadHandler.text);
+
+
+    }
+
+    IEnumerator Get_ExchJS()
+    {
+        WWWForm form = new WWWForm();
+        UnityWebRequest www = UnityWebRequest.Post("http://localhost:5000/get_exch", form);
+        www.downloadHandler = new DownloadHandlerBuffer();
+        yield return www.SendWebRequest();
+        Debug.Log(www.result);
+        Debug.Log(www.downloadHandler.text);
+    }
+
+    
 
 }
